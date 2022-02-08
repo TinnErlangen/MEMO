@@ -3,9 +3,9 @@ import mne
 import numpy as np
 
 # setup directories
-beh_dir = "/Volumes/Windows/MEMO/MEMO_beh/"
-proc_dir = "/Volumes/Windows/MEMO/MEMO_preproc/"
-fig_dir = "/Users/miro/Desktop/BA_graph/"
+# beh_dir = "/Volumes/Windows/MEMO/MEMO_beh/"
+proc_dir = "/home/cora/hdd/MEG/MEMO_analyses/MEMO_preproc/"
+fig_dir = "/home/cora/hdd/MEG/MEMO_analyses/"
 
 # subjects list
 subjs = ["MEM_14","MEM_13","MEM_03","MEM_05","MEM_04","MEM_02","MEM_15","MEM_01",
@@ -86,7 +86,6 @@ GA_diff_TFR = mne.grand_average(diff_TFRs)
 
 GA_diff_TFR.plot(baseline=None,mode=None,title="GA - TFR response Negative-Positive")
 
-
 # STATISTICS - spatio-temporal cluster T-test cont vs. break for Alpha band (7-11 Hz)
 
 # we crop the TFRs to the alpha band, and collect the data arrays into a list container
@@ -144,5 +143,8 @@ if good_cluster_inds.any():
         #fig.savefig("{d}GA_T-cluster_cont_minus_break_topo.png".format(d=fig_dir))
 
 GA_diff_TFR.plot_joint(picks=ch_inds, timefreqs={(1, 9): (0.1, 2), (1.5, 9): (0.1, 2), (2, 9): (0.1, 2)}, baseline=None, mode=None, fmin=5, fmax= 20, title="GA - TFR response Negative-Positive")
+GA_diff_TFR.plot_joint(picks=ch_inds, timefreqs={(0.05, 9): (0.1, 2),(0.25, 9): (0.1, 2),(0.45, 9): (0.1, 2),(0.65, 9): (0.1, 2),(0.85, 9): (0.1, 2),(1.05, 9): (0.1, 2),(1.25, 9): (0.1, 2),(1.45, 9): (0.1, 2),
+                       (1.65, 9): (0.1, 2),(1.85, 9): (0.1, 2),(2.05, 9): (0.1, 2),(2.25, 9): (0.1, 2)}, baseline=None, mode=None, fmin=5, fmax= 20, title="GA - TFR response Negative-Positive")
+GA_diff_TFR.plot_joint(picks=ch_inds, timefreqs={(1.15, 9): (0.15, 4), (1.45, 9): (0.15, 4), (1.75, 9): (0.15, 4), (2.05, 9): (0.15, 4)}, baseline=None, mode=None, fmin=5, fmax= 20, title="GA - TFR response Negative-Positive")
 
 #GA_diff_TFR.plot(picks=ch_inds, title="GA - TFR response Negative-Positive Cluster")
