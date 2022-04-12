@@ -7,8 +7,8 @@ beh_dir = "/Volumes/Windows/MEMO/MEMO_beh/"
 proc_dir = "/Volumes/Windows/MEMO/MEMO_preproc/"
 
 # subjects list
-#subjs = ["MEM_14","MEM_13","MEM_03","MEM_05","MEM_04","MEM_02","MEM_15","MEM_01",
-#         "MEM_12","MEM_07","MEM_06"]
+subjs = ["MEM_14","MEM_13","MEM_03","MEM_05","MEM_04","MEM_02","MEM_15","MEM_01",
+         "MEM_12","MEM_07","MEM_06"]
 nonill_subjs = ["MEM_08","MEM_10","MEM_11"]
 subjs = ["MEM_09"]
 

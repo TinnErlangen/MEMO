@@ -123,10 +123,6 @@ if good_cluster_inds.any():
         time_inds, ch_inds = clusters[clu_idx]
         ch_inds = np.unique(ch_inds)
         time_inds = np.unique(time_inds)
-
-
-
-
         # get topography for T stat (mean over cluster freqs)
         t_map = t_obs[time_inds, ...].mean(axis=0)
         # create spatial mask for plotting (setting cluster channels to "True")
@@ -146,5 +142,58 @@ GA_diff_TFR.plot_joint(picks=ch_inds, timefreqs={(1, 9): (0.1, 2), (1.5, 9): (0.
 GA_diff_TFR.plot_joint(picks=ch_inds, timefreqs={(0.05, 9): (0.1, 2),(0.25, 9): (0.1, 2),(0.45, 9): (0.1, 2),(0.65, 9): (0.1, 2),(0.85, 9): (0.1, 2),(1.05, 9): (0.1, 2),(1.25, 9): (0.1, 2),(1.45, 9): (0.1, 2),
                        (1.65, 9): (0.1, 2),(1.85, 9): (0.1, 2),(2.05, 9): (0.1, 2),(2.25, 9): (0.1, 2)}, baseline=None, mode=None, fmin=5, fmax= 20, title="GA - TFR response Negative-Positive")
 GA_diff_TFR.plot_joint(picks=ch_inds, timefreqs={(1.15, 9): (0.15, 4), (1.45, 9): (0.15, 4), (1.75, 9): (0.15, 4), (2.05, 9): (0.15, 4)}, baseline=None, mode=None, fmin=5, fmax= 20, title="GA - TFR response Negative-Positive")
+GA_diff_TFR.plot_joint(picks=ch_inds, timefreqs={(0.55, 9): (0.05, 4), (0.85, 9): (0.05, 4), (1.15, 9): (0.05, 4), (1.45, 9): (0.05, 4), (1.75, 9): (0.05, 4)}, baseline=None, mode=None, fmin=5, fmax= 20, title="GA - TFR response Negative-Positive")
 
 #GA_diff_TFR.plot(picks=ch_inds, title="GA - TFR response Negative-Positive Cluster")
+
+# STATISTICS - spatio-temporal cluster T-test cont vs. break for Beta band (14-18 Hz)
+
+# we crop the TFRs to the alpha band, and collect the data arrays into a list container
+beta_diff_TFRs = []
+for tfr in diff_TFRs:
+    copy = tfr.copy()
+    copy.crop(fmin=14,fmax=18)
+    beta_diff_TFRs.append(copy.data)
+# then we average over the frequencies (= axis 1 in a channel x freq x times array)
+X_beta_avg = [np.mean(x, axis=1) for x in beta_diff_TFRs]
+# and swap the axes from (channels x times) to (times x channels) as needed in the stats array
+X_beta_prep = [np.transpose(x, (1,0)) for x in X_beta_avg]
+# then we convert the list into our data array for the stats, where the 1st dimension is observations (i.e. here, subjects)
+X_beta_diff = np.array(X_beta_prep)
+
+# make spatio-temporal cluster T-test
+# set parameters
+threshold = None    # p <.01 = 3.106 (df = 11)
+# get channel connectivity for cluster permutation test
+adjacency, ch_names = mne.channels.find_ch_adjacency(epo.info, ch_type='mag')
+# MNE uses a 1sample T-test, i.e. one first subtracts the conditions, then tests against zero (that's why we used the diff_data directly)
+# needed data form: X = array of shape observations x times/freqs x locs/chans
+t_obs, clusters, cluster_pv, H0 = mne.stats.spatio_temporal_cluster_1samp_test(X_beta_diff, threshold=threshold, n_permutations=1024,
+                                                                               tail=0, adjacency=adjacency, n_jobs=4, step_down_p=0,
+                                                                               t_power=1, out_type='indices')
+
+# now explore and plot the clusters
+# get indices of good clusters
+good_cluster_inds = np.where(cluster_pv < .05)[0]   # it's a tuple, with [0] we grab the array therein
+# if there are any, do more...
+if good_cluster_inds.any():
+    # then loop over clusters
+    for i_clu, clu_idx in enumerate(good_cluster_inds):
+        # unpack cluster information, get unique indices
+        time_inds, ch_inds = clusters[clu_idx]
+        ch_inds = np.unique(ch_inds)
+        time_inds = np.unique(time_inds)
+        # get topography for T stat (mean over cluster freqs)
+        t_map = t_obs[time_inds, ...].mean(axis=0)
+        # create spatial mask for plotting (setting cluster channels to "True")
+        mask = np.zeros((t_map.shape[0], 1), dtype=bool)
+        mask[ch_inds, :] = True
+        # plot average test statistic and mark significant sensors
+        t_evoked = mne.EvokedArray(t_map[:, np.newaxis], epo.info, tmin=0)
+        fig = t_evoked.plot_topomap(times=0, mask=mask, cmap='bwr',
+                                    vmin=np.min, vmax=np.max,scalings=1.0,
+                                    units="T_val", time_format= "",
+                                    title="Alpha Power \n{} - {} ms".format(time_inds[0]*5-105,time_inds[-1]*5-105),
+                                    mask_params=dict(markersize=4),
+                                    size = 6, show=True)
+        #fig.savefig("{d}GA_T-cluster_cont_minus_break_topo.png".format(d=fig_dir))
