@@ -23,7 +23,7 @@ pow_vars = ["ENT_alpha","INS_alpha","LOF_alpha","MOF_alpha","OPC_alpha","ACC_alp
 d_var = "Illusion"
 
 # Stat prep
-# aicd_thresh = 5
+aicd_thresh = 4
 def aic_pval(a,b):
     return np.exp((a - b)/2)   # calculates the evidence ratio for 2 aic values
 def pseudo_r2(m, y):    # calculates the pseudo r2 from model summary(m) and observed vals (y)
@@ -47,14 +47,18 @@ illgrad = [(i+s) if i==2 else i for i,s in zip(illubas,MEMO_cent.Sure)]
 illgrad = [1 if (i==0 and s==0) else i for i,s in zip(illgrad,MEMO_cent.Sure)]
 MEMO_cent["Illgrad"] = illgrad
 
+d_var = "Illgrad"
+obsvals = MEMO_cent[d_var]
+p_vars = ["ENT_alpha","INS_alpha","LOF_alpha","MOF_alpha","OPC_alpha","ACC_alpha","STP_alpha","TPO_alpha","TTP_alpha"]
 
-null_model = sm.GEE.from_formula("{dv} ~ 1".format(dv=d_var), groups="Subject", family=sm.families.Binomial(),
-                                 cov_struct=sm.cov_struct.Exchangeable(), data=MEMO_cent)
-res_null = null_model.fit()
-aic_null = res_null.aic
-last_aic = aic_null
-print(res_null.summary())
-print()
+# Null model
+print("ANALYSES FOR {}".format(d_var))
+model = "{dv} ~ 1".format(dv=d_var)
+res_0 = smf.mixedlm('{}'.format(model), data=MEMO_cent, groups=MEMO_cent['Subject']).fit(reml=False)
+print("Null model AIC =  ", res_0.aic)
+print("Null model PseudoR2 =  ", pseudo_r2(res_0,obsvals))
+null_aic = res_0.aic
+last_aic = res_0.aic    # for deltas and comparisons
 
 # Finding the Optimal Model with Power Variables
 print("Finding the Optimal Model with Power Variables..")
@@ -66,11 +70,10 @@ aicd_dict = {}
 ix = 1
 print("Iteration/Variable {}".format(ix))
 model_bef = "{dv} ~ ".format(dv=d_var)
-for p_var in pow_vars:
+for p_var in p_vars:
     model_now = "{mb} {pv}".format(mb=model_bef, pv=p_var)
     print(model_now)
-    res = sm.GEE.from_formula('{}'.format(model_now), groups="Subject", family=sm.families.Binomial(),
-                              cov_struct=sm.cov_struct.Exchangeable(), data=MEMO_cent).fit()
+    res = smf.mixedlm('{}'.format(model_now), data=MEMO_cent, groups=MEMO_cent['Subject']).fit(reml=False)
     aic_dict[p_var] = res.aic
     aicd_dict[p_var] = last_aic - res.aic
 aic_dict_t = {v: k for k,v in aic_dict.items()}
@@ -80,21 +83,20 @@ best_aic = np.array(list(aic_dict.values())).min()
 best_var = aic_dict_t[best_aic]
 print("Best Variable is: ", best_var)
 aic_p = aic_pval(best_aic, last_aic)
-if aic_p < 0.05 :
+if aicd_dict[best_var] > aicd_thresh :
     model_bef = "{mb} {bv}".format(mb=model_bef, bv=best_var)
     p_vars.remove(best_var)
     last_aic = best_aic
     print("Current best model: ", model_bef, ", AIC = ", best_aic, ", AIC_delta = ", aicd_dict[best_var], ", AIC_p = ", aic_p)
 
     # now Iterate until Best Model
-    while aic_p < 0.05 :
+    while aicd_dict[best_var] > aicd_thresh :
         ix = ix + 1
         print("Iteration/Variable {}".format(ix))
         for p_var in p_vars:
             model_now = "{mb} + {pv}".format(mb=model_bef, pv=p_var)
             print(model_now)
-            res = sm.GEE.from_formula('{}'.format(model_now), groups="Subject", family=sm.families.Binomial(),
-                                      cov_struct=sm.cov_struct.Exchangeable(), data=MEMO_cent).fit()
+            res = smf.mixedlm('{}'.format(model_now), data=MEMO_cent, groups=MEMO_cent['Subject']).fit(reml=False)
             aic_dict[p_var] = res.aic
             aicd_dict[p_var] = last_aic - res.aic
         aic_dict_t = {v: k for k,v in aic_dict.items()}
@@ -104,15 +106,15 @@ if aic_p < 0.05 :
         best_var = aic_dict_t[best_aic]
         print("Best Variable is: ", best_var)
         aic_p = aic_pval(best_aic, last_aic)
-        if aic_p < 0.05 :
+        if aicd_dict[best_var] > aicd_thresh :
             model_bef = "{mb} + {bv}".format(mb=model_bef, bv=best_var)
             p_vars.remove(best_var)
             last_aic = best_aic
             print("Current best model: ", model_bef, ", AIC = ", best_aic, ", AIC_delta = ", aicd_dict[best_var], ", AIC_p = ", aic_p)
 
+
 print("Optimization for {dv} complete.".format(dv=d_var))
 print("Optimal model is: ", model_bef)
-res_opt = sm.GEE.from_formula('{}'.format(model_bef), groups="Subject", family=sm.families.Binomial(),
-                              cov_struct=sm.cov_struct.Exchangeable(), data=MEMO_cent).fit()
+res_opt = smf.mixedlm('{}'.format(model_bef), data=MEMO_cent, groups=MEMO_cent['Subject']).fit(reml=False)
 print(res_opt.summary())
 print("Opt Model PseudoR2 = ", pseudo_r2(res_opt,obsvals))
